@@ -31,13 +31,33 @@ jobs:
 
       - name: Update Android SDK configuration
         run: |
-          # Update compileSdk to 35
-          sed -i 's/compileSdk = [0-9]*/compileSdk = 35/g' android/app/build.gradle
-          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 35/g' android/app/build.gradle
+          cat > update_sdk.py << 'EOF'
+          import re
           
-          # Ensure targetSdk is set appropriately
-          sed -i 's/targetSdk = [0-9]*/targetSdk = 35/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 35/g' android/app/build.gradle
+          # Read the build.gradle file
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+          
+          # Update compileSdk
+          content = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 35', content)
+          content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 35', content)
+          
+          # Update targetSdk
+          content = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 35', content)
+          content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion 35', content)
+          
+          # Write back
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+          
+          print("Updated build.gradle")
+          EOF
+          
+          python3 update_sdk.py
+          
+          # Verify the changes
+          echo "=== Checking build.gradle SDK versions ==="
+          grep -E "(compileSdk|targetSdk)" android/app/build.gradle || echo "No SDK version found"
 
       - name: Get dependencies
         run: flutter pub get

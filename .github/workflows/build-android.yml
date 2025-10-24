@@ -65,6 +65,35 @@ jobs:
       - name: Analyze code
         run: flutter analyze --no-fatal-infos || true
 
+      - name: Create keystore (if secrets not provided)
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "No keystore provided, creating temporary keystore for unsigned build..."
+            # Generate a temporary keystore for CI builds
+            keytool -genkey -v -keystore /tmp/release.keystore -alias release \
+              -keyalg RSA -keysize 2048 -validity 10000 -storepass android \
+              -keypass android -dname "CN=CI, OU=CI, O=CI, L=CI, S=CI, C=US"
+            
+            # Create key.properties
+            cat > android/key.properties << EOF
+          storePassword=android
+          keyPassword=android
+          keyAlias=release
+          storeFile=/tmp/release.keystore
+          EOF
+          else
+            echo "Using provided keystore from secrets..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/release.keystore
+            
+            # Create key.properties from secrets
+            cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=/tmp/release.keystore
+          EOF
+          fi
+
       - name: Build ARM64-v8a APK
         run: flutter build apk --release --target-platform android-arm64 --split-per-abi
 
